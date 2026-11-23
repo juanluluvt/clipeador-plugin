@@ -1,0 +1,40 @@
+name: Compilar Clipeador
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar
+        run: cmake --preset windows-x64
+
+      - name: Compilar
+        run: cmake --build --preset windows-x64 --config Release --parallel
+
+      - name: Instalar en carpeta
+        run: cmake --install build_x64 --prefix release/Release --config Release
+
+      - name: Crear carpeta de plugin
+        shell: pwsh
+        run: |
+          $src = "release/Release"
+          $dest = "out/clipeador"
+          New-Item -ItemType Directory -Force "$dest/bin/64bit" | Out-Null
+          New-Item -ItemType Directory -Force "$dest/data" | Out-Null
+          Copy-Item "$src/obs-plugins/64bit/clipeador.dll" "$dest/bin/64bit/"
+          if (Test-Path "$src/data/obs-plugins/clipeador") {
+            Copy-Item "$src/data/obs-plugins/clipeador/*" "$dest/data" -Recurse -Force
+          }
+          Get-ChildItem $dest -Recurse | Select-Object FullName
+          Compress-Archive -Path $dest -DestinationPath Clipeador-plugin-windows.zip -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Clipeador-plugin-windows
+          path: Clipeador-plugin-windows.zip
